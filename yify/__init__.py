@@ -24,12 +24,12 @@ def get_movie(url):
 
     # get movie details
     for li in root.xpath('//div[@class="inattr"]//li'):
-        texts = list(text.lower().strip() for text in li.itertext())
+        texts = list(text.lower().strip().replace(' ', '_') for text in li.itertext())
         key = texts[0].replace(':', '')
         value = ' '.join(texts[1:]).strip()
 
         # get imdb link
-        if key == 'imdb rating':
+        if key == 'imdb_rating':
             datas['imdb'] = li.xpath('./a')[0].attrib['href']
 
     attrs = root.xpath('//div[@class="outattr"]/div[@class="attr"]')
@@ -79,7 +79,7 @@ def get_movies(kind, page, search=None):
             # find movie informations like genre, quality...
             infos = {}
             for li in mv.xpath('.//li'):
-                texts = list(text.lower().strip() for text in li.itertext())
+                texts = list(text.lower().strip().replace(' ', '_') for text in li.itertext())
                 # remove : for first item, and convert string to lowercase
                 texts[0] = texts[0].replace(':', '').lower()
                 # use first item as key, others as value
