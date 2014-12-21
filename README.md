@@ -18,7 +18,7 @@ or
 
 Usage
 ------
-###Import asyncio and yify package, and get event loop:
+###Import asyncio and yify package, then get event loop:
 ```
 import asyncio
 import yify
@@ -28,22 +28,54 @@ loop = asyncio.get_event_loop()
 
 ###Get popular movies in one page:
 ```
-loop.run_until_complete(yify.popular(1))
+@asyncio.coroutine
+def foo():
+    movies = yield from yify.popular(1)
+
+    # print first movie title
+    print(movies[0]['title'])
+
+loop.run_until_complete(foo())
 ```
 
 ###Get popular movies in multiple pages:
 ```
 # get popular movies from page 1 to 21
-f = asyncio.wait([popular(page) for page in range(1, 21)])
-loop.run_until_complete(f)
+@asyncio.coroutine
+def foo():
+    # create a list of coroutines from page 1 to 10
+    tasks = [yify.popular(i) for i in range(1, 11)]
+    
+    for f in asyncio.as_completed(tasks):
+        movies = yield from f
+        
+        # print each movie rating and title
+        for movie in movies:
+            print(movie['rating'], movie['title'])
+
+loop.run_until_complete(foo())
 ```
 
 ###Get latest movies:
 ```
-loop.run_until_complete(yify.latest(1))
+@asyncio.coroutine
+def foo():
+    movies = yield from yify.latest(1)
+
+    # print first movie title
+    print(movies[0]['title'])
+
+loop.run_until_complete(foo())
 ```
 
-###Search movies
+###Search movies:
 ```
-loop.run_until_complete(yify.search('django', 1))
+@asyncio.coroutine
+def foo():
+    movies = yield from yify.search('django', 1)
+
+    # print first movie title
+    print(movies[0]['title'])
+
+loop.run_until_complete(foo())
 ```
