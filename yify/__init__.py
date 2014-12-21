@@ -116,19 +116,19 @@ def get_url(kind, page, search=None):
 
 
 @asyncio.coroutine
-def latest(page):
+def latest(page=1):
     '''Show latest movies.'''
     return get_movies('latest', page)
 
 
 @asyncio.coroutine
-def popular(page):
+def popular(page=1):
     '''Show popular movies.'''
     return get_movies('popular', page)
 
 
 @asyncio.coroutine
-def search(keyword, page):
+def search(keyword, page=1):
     '''Search movies.'''
     return get_movies('search', page, keyword)
 
