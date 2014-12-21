@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='asyncio-yify',
-    version='0.0.1',
+    version='0.0.2',
     author='davidyen1124',
     author_email='davidyen1124@gmail.com',
     description='Wrapper for retrieving latest, popular movies and search movies on yify-torrent.org',

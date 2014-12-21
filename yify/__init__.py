@@ -9,54 +9,43 @@ base_url = 'http://www.yify-torrent.org'
 sem = asyncio.Semaphore(10)
 
 
-def parse_movies(content):
-    movies = []
+@asyncio.coroutine
+def get_movie(url):
+    # get movie page
+    res = yield from aiohttp.request('GET', url)
+    content = yield from res.text()
 
-    # use lxml to find the informations we want
     root = etree.HTML(content)
-    # every movie is inside a div with class mv
-    for mv in root.xpath('//div[@class="mv"]'):
-        # find movie title and yify link
-        h3 = mv.xpath('./h3')
-        a = h3[0].xpath('./a')[0]
-        title = a.text
-        link = base_url + a.attrib['href']
 
-        # find movie poster image
-        poster = mv.xpath('.//div[@class="movie-image"]//img')[0].attrib['src']
+    datas = {}
 
-        # find movie informations like genre, quality...
-        infos = {}
-        for li in mv.xpath('.//li'):
-            texts = list(li.itertext())
-            # remove : for first item, and convert string to lowercase
-            texts[0] = texts[0].replace(':', '').lower()
-            # use first item as key, others as value
-            infos[texts[0]] = ' '.join(texts[1:])
+    # get movie poster
+    datas['poster_large'] = root.xpath('//div[@class="cover"]/img')[0].attrib['src']
 
-        # split rating with /, then get first part and turn it into float
-        infos['rating'] = float(infos['rating'].split('/')[0])
+    # get movie details
+    for li in root.xpath('//div[@class="inattr"]//li'):
+        texts = list(text.lower().strip() for text in li.itertext())
+        key = texts[0].replace(':', '')
+        value = ' '.join(texts[1:]).strip()
 
-        # put movie data into dictionary
-        movie = {
-            'title': title,
-            'link': link,
-            'poster': poster,
-        }
-        movie.update(infos)
-        # append movie into movies
-        movies.append(movie)
+        # get imdb link
+        if key == 'imdb rating':
+            datas['imdb'] = li.xpath('./a')[0].attrib['href']
 
-    return movies
+    attrs = root.xpath('//div[@class="outattr"]/div[@class="attr"]')
+    # get trailer
+    datas['trailer'] = attrs[1].xpath('./a')[0].attrib['href']
+    # get magnet
+    datas['magnet'] = attrs[2].xpath('./a')[0].attrib['href']
 
+    # get screenshots
+    imgs = root.xpath('//div[@class="scrshot"]//img')
+    datas['screenshot'] = [i.attrib['src'] for i in imgs]
 
-def get_url(kind, page, search=None):
-    '''Use kind to generate different url.'''
-    kind = kind.lower()
-    if kind == 'search' and search is not None:
-        return '{}/search/{}/t-{}/'.format(base_url, search, page)
-    elif kind in ['latest', 'popular']:
-        return '{}/{}.html'.format(base_url, kind)
+    # get plot
+    datas['plot'] = root.xpath('//div[@class="info"]/p')[0].text
+
+    return datas
 
 
 @asyncio.coroutine
@@ -72,9 +61,58 @@ def get_movies(kind, page, search=None):
         res = yield from aiohttp.request('GET', url)
         content = yield from res.text()
 
-        # let the parse begin
-        movies = parse_movies(content)
+        movies = []
+
+        # use lxml to find the informations we want
+        root = etree.HTML(content)
+        # every movie is inside a div with class mv
+        for mv in root.xpath('//div[@class="mv"]'):
+            # find movie title and yify link
+            h3 = mv.xpath('./h3')
+            a = h3[0].xpath('./a')[0]
+            title = a.text
+            link = base_url + a.attrib['href']
+
+            # find movie poster image
+            poster = mv.xpath('.//div[@class="movie-image"]//img')[0].attrib['src']
+
+            # find movie informations like genre, quality...
+            infos = {}
+            for li in mv.xpath('.//li'):
+                texts = list(text.lower().strip() for text in li.itertext())
+                # remove : for first item, and convert string to lowercase
+                texts[0] = texts[0].replace(':', '').lower()
+                # use first item as key, others as value
+                infos[texts[0]] = ' '.join(texts[1:])
+
+            # put movie data into dictionary
+            movie = {
+                'title': title,
+                'link': link,
+                'poster_small': poster,
+            }
+            movie.update(infos)
+
+            # append movie into movies
+            movies.append(movie)
+
+        # get details of each movie by calling get_movie
+        for movie in movies:
+            info = yield from get_movie(movie['link'])
+
+            # update movie dictionary with info
+            movie.update(info)
+
         return movies
+
+
+def get_url(kind, page, search=None):
+    '''Use kind to generate different url.'''
+    kind = kind.lower()
+    if kind == 'search' and search is not None:
+        return '{}/search/{}/t-{}/'.format(base_url, search, page)
+    elif kind in ['latest', 'popular']:
+        return '{}/{}.html'.format(base_url, kind)
 
 
 @asyncio.coroutine
@@ -95,11 +133,18 @@ def search(keyword, page):
     return get_movies('search', page, keyword)
 
 
+@asyncio.coroutine
+def test():
+    # get first ten pages of movies
+    for f in asyncio.as_completed([popular(i) for i in range(1, 11)]):
+        movies = yield from f
+        for movie in movies:
+            print(movie['rating'], movie['title'])
+
+
 def main():
     loop = asyncio.get_event_loop()
-    f = asyncio.wait([popular(i) for i in range(1, 46)])
-    loop.run_until_complete(f)
-    # loop.run_until_complete(search('equalizer', 1))
+    loop.run_until_complete(test())
 
 if __name__ == '__main__':
     main()
