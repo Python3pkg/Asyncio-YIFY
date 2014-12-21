@@ -27,6 +27,7 @@ def get_movie(url):
         texts = list(text.lower().strip().replace(' ', '_') for text in li.itertext())
         key = texts[0].replace(':', '')
         value = ' '.join(texts[1:]).strip()
+        datas[key] = value
 
         # get imdb link
         if key == 'imdb_rating':
@@ -101,7 +102,7 @@ def get_movies(kind, page, search=None):
             info = yield from get_movie(movie['link'])
 
             # update movie dictionary with info
-            movie.update(infos)
+            movie.update(info)
 
         return movies
 
