@@ -101,7 +101,7 @@ def get_movies(kind, page, search=None):
             info = yield from get_movie(movie['link'])
 
             # update movie dictionary with info
-            movie.update(info)
+            movie.update(infos)
 
         return movies
 
