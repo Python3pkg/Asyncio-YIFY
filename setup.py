@@ -2,12 +2,12 @@ from setuptools import setup
 
 setup(
     name='asyncio-yify',
-    version='0.0.5',
+    version='0.0.6',
     author='davidyen1124',
     author_email='davidyen1124@gmail.com',
-    description='Wrapper for retrieving latest, popular movies and search movies on yify-torrent.org',
+    description='Damned fast YIFY parser using Asyncio',
     lincense='Apache',
-    keywords='yify parser movies',
+    keywords='yify parser movies asyncio',
     url='https://github.com/davidyen1124/Asyncio-YIFY',
     packages=['yify'],
     install_requires=[
