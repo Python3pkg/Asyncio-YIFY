@@ -5,64 +5,62 @@ from lxml import etree
 
 base_url = 'http://www.yify-torrent.org'
 
-# use semaphore to limit the number of coroutines
-sem = asyncio.Semaphore(15)
-
 
 @asyncio.coroutine
-def get_one(url):
-    '''Get informations of the specific movie.'''
-    # get page content by asyncio
-    res = yield from aiohttp.request('GET', url)
-    content = yield from res.text()
+def get_one(url, sem):
+    with (yield from sem):
+        '''Get informations of the specific movie.'''
+        # get page content by asyncio
+        res = yield from aiohttp.request('GET', url)
+        content = yield from res.text()
 
-    movie = {}
+        movie = {}
 
-    # use lxml to find the informations we want
-    root = etree.HTML(content)
+        # use lxml to find the informations we want
+        root = etree.HTML(content)
 
-    # get movie poster
-    movie['poster_large'] =\
-        root.xpath('//div[@class="cover"]/img')[0].attrib['src']
+        # get movie poster
+        movie['poster_large'] =\
+            root.xpath('//div[@class="cover"]/img')[0].attrib['src']
 
-    # get movie details
-    for li in root.xpath('//div[@class="inattr"]//li'):
-        # strip space for each text segments
-        texts = list(text.strip() for text in li.itertext())
+        # get movie details
+        for li in root.xpath('//div[@class="inattr"]//li'):
+            # strip space for each text segments
+            texts = list(text.strip() for text in li.itertext())
 
-        # use first segment as key
-        # lowercase, remove : and replace space with underscore
-        key = texts[0].lower().replace(':', '').replace(' ', '_')
+            # use first segment as key
+            # lowercase, remove : and replace space with underscore
+            key = texts[0].lower().replace(':', '').replace(' ', '_')
 
-        # others as value, and join all as one string
-        value = ' '.join(texts[1:]).strip()
-        movie[key] = value
+            # others as value, and join all as one string
+            value = ' '.join(texts[1:]).strip()
+            movie[key] = value
 
-        # get imdb link if key is imdb_rating
-        if key == 'imdb_rating':
-            movie['imdb'] = li.xpath('./a')[0].attrib['href']
+            # get imdb link if key is imdb_rating
+            if key == 'imdb_rating':
+                movie['imdb'] = li.xpath('./a')[0].attrib['href']
 
-    attrs = root.xpath('//div[@class="outattr"]/div[@class="attr"]')
-    # get trailer
-    movie['trailer'] = attrs[1].xpath('./a')[0].attrib['href']
-    # get magnet
-    movie['magnet'] = attrs[2].xpath('./a')[0].attrib['href']
+        attrs = root.xpath('//div[@class="outattr"]/div[@class="attr"]')
+        # get trailer
+        movie['trailer'] = attrs[1].xpath('./a')[0].attrib['href']
+        # get magnet
+        movie['magnet'] = attrs[2].xpath('./a')[0].attrib['href']
 
-    # get screenshots
-    imgs = root.xpath('//div[@class="scrshot"]//img')
-    movie['screenshot'] = [i.attrib['src'] for i in imgs]
+        # get screenshots
+        imgs = root.xpath('//div[@class="scrshot"]//img')
+        movie['screenshot'] = [i.attrib['src'] for i in imgs]
 
-    # get plot
-    movie['plot'] = root.xpath('//div[@class="info"]/p')[0].text
+        # get plot
+        movie['plot'] = root.xpath('//div[@class="info"]/p')[0].text
 
     return movie
 
 
 @asyncio.coroutine
-def get_movies(kind, page, search=None):
-    '''Get all movies by specifing kind.'''
-    # use semaphore to limit the number of coroutines
+def get_movies(kind, page, sem, search=None):
     with (yield from sem):
+        '''Get all movies by specifing kind.'''
+        # use semaphore to limit the number of coroutines
         url = get_url(kind, page, search)
         # check url is None
         if url is None:
@@ -111,12 +109,12 @@ def get_movies(kind, page, search=None):
             # append movie into movies
             movies.append(movie)
 
-        # get informations from the movie's yify link
-        for movie in movies:
-            detail = yield from get_one(movie['link'])
-            movie.update(detail)
+    # get informations from the movie's yify link
+    for movie in movies:
+        detail = yield from get_one(movie['link'], sem)
+        movie.update(detail)
 
-        return movies
+    return movies
 
 
 def get_url(kind, page, search=None):
@@ -125,31 +123,32 @@ def get_url(kind, page, search=None):
     if kind == 'search' and search is not None:
         return '{}/search/{}/t-{}/'.format(base_url, search, page)
     elif kind in ['latest', 'popular']:
-        return '{}/{}.html'.format(base_url, kind)
+        return '{}/{}-{}.html'.format(base_url, kind, page)
 
 
 @asyncio.coroutine
-def latest(page=1):
+def latest(sem, page=1):
     '''Show latest movies.'''
-    return get_movies('latest', page)
+    return get_movies('latest', page, sem)
 
 
 @asyncio.coroutine
-def popular(page=1):
+def popular(sem, page=1):
     '''Show popular movies.'''
-    return get_movies('popular', page)
+    return get_movies('popular', page, sem)
 
 
 @asyncio.coroutine
-def search(keyword, page=1):
+def search(sem, keyword, page=1):
     '''Search movies.'''
-    return get_movies('search', page, keyword)
+    return get_movies('search', page, sem, keyword)
 
 
 @asyncio.coroutine
 def test():
     '''Get ten pages of movies.'''
-    for f in asyncio.as_completed([popular(i) for i in range(1, 3)]):
+    sem = asyncio.Semaphore(20)
+    for f in asyncio.as_completed([popular(sem, i) for i in range(1, 15)]):
         movies = yield from f
         for movie in movies:
             print(movie['rating'], movie['title'])
