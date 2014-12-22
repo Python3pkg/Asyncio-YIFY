@@ -5,6 +5,8 @@ from lxml import etree
 
 base_url = 'http://www.yify-torrent.org'
 
+NUM_COROUTINES = 30
+
 
 @asyncio.coroutine
 def get_one(url, sem):
@@ -57,14 +59,14 @@ def get_one(url, sem):
 
 
 @asyncio.coroutine
-def get_movies(kind, page, sem, search=None):
+def get_movies(kind, page, search, future, sem):
     with (yield from sem):
         '''Get all movies by specifing kind.'''
         # use semaphore to limit the number of coroutines
         url = get_url(kind, page, search)
         # check url is None
         if url is None:
-            return []
+            return future.set_result([])
 
         # get page content by asyncio
         res = yield from aiohttp.request('GET', url)
@@ -114,7 +116,7 @@ def get_movies(kind, page, sem, search=None):
         detail = yield from get_one(movie['link'], sem)
         movie.update(detail)
 
-    return movies
+    future.set_result(movies)
 
 
 def get_url(kind, page, search=None):
@@ -126,37 +128,91 @@ def get_url(kind, page, search=None):
         return '{}/{}-{}.html'.format(base_url, kind, page)
 
 
-@asyncio.coroutine
-def latest(sem, page=1):
+def latest(from_page=1, to_page=1):
     '''Show latest movies.'''
-    return get_movies('latest', page, sem)
+    # create a semaphore to limit coroutine numbers
+    sem = asyncio.Semaphore(NUM_COROUTINES)
+
+    # create an event loop
+    loop = asyncio.get_event_loop()
+
+    futures = []
+    # create a new future for each page
+    for page in range(from_page, to_page + 1):
+        # use future to wrap a an asynchronous execution
+        future = asyncio.Future()
+        asyncio.async(get_movies('latest', page, None, future, sem))
+        futures.append(future)
+
+    # wait for all futures to complete
+    loop.run_until_complete(asyncio.wait(futures))
+
+    results = []
+    # iterate through each future, then get results and append to results
+    for f in futures:
+        results += f.result()
+    return results
 
 
-@asyncio.coroutine
-def popular(sem, page=1):
+def popular(from_page=1, to_page=1):
     '''Show popular movies.'''
-    return get_movies('popular', page, sem)
+    # create a semaphore to limit coroutine numbers
+    sem = asyncio.Semaphore(NUM_COROUTINES)
+
+    # create an event loop
+    loop = asyncio.get_event_loop()
+
+    futures = []
+    # create a new future for each page
+    for page in range(from_page, to_page + 1):
+        # use future to wrap a an asynchronous execution
+        future = asyncio.Future()
+        asyncio.async(get_movies('popular', page, None, future, sem))
+        futures.append(future)
+
+    # wait for all futures to complete
+    loop.run_until_complete(asyncio.wait(futures))
+
+    results = []
+    # iterate through each future, then get results and append to results
+    for f in futures:
+        results += f.result()
+    return results
 
 
-@asyncio.coroutine
-def search(sem, keyword, page=1):
+def search(keyword, from_page=1, to_page=1):
     '''Search movies.'''
-    return get_movies('search', page, sem, keyword)
+    # replace space with %20
+    keyword = keyword.replace(' ', '%20')
 
+    # create a semaphore to limit coroutine numbers
+    sem = asyncio.Semaphore(NUM_COROUTINES)
 
-@asyncio.coroutine
-def test():
-    '''Get ten pages of movies.'''
-    sem = asyncio.Semaphore(20)
-    for f in asyncio.as_completed([popular(sem, i) for i in range(1, 15)]):
-        movies = yield from f
-        for movie in movies:
-            print(movie['rating'], movie['title'])
+    # create an event loop
+    loop = asyncio.get_event_loop()
+
+    futures = []
+    # create a new future for each page
+    for page in range(from_page, to_page + 1):
+        # use future to wrap a an asynchronous execution
+        future = asyncio.Future()
+        asyncio.async(get_movies('search', page, keyword, future, sem))
+        futures.append(future)
+
+    # wait for all futures to complete
+    loop.run_until_complete(asyncio.wait(futures))
+
+    results = []
+    # iterate through each future, then get results and append to results
+    for f in futures:
+        results += f.result()
+    return results
 
 
 def main():
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(test())
+    movies = latest(1, 3)
+    for m in movies:
+        print('{}: {}'.format(m['title'], m['rating']))
 
 if __name__ == '__main__':
     main()
