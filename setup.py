@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='asyncio-yify',
-    version='0.0.6',
+    version='0.0.7',
     author='davidyen1124',
     author_email='davidyen1124@gmail.com',
     description='Damned fast YIFY parser using Asyncio',
