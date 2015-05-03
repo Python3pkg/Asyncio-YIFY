@@ -82,29 +82,11 @@ def get_all(kind, page, search, future, sem):
             # get yify link
             link = base_url + a.attrib['href']
 
-            # find movie poster image
-            poster =\
-                mv.xpath('.//div[@class="movie-image"]//img')[0].attrib['src']
-
             # put movie data into dictionary
             movie = {
                 'title': title,
                 'link': link,
-                'poster_small': poster,
             }
-
-            # find movie informations like genre, qualit, etc
-            for li in mv.xpath('.//li'):
-                # strip space for each text segments
-                texts = list(text.strip() for text in li.itertext())
-
-                # use first segment as key
-                # lowercase, remove : and replace space with underscore
-                key = texts[0].lower().replace(':', '').replace(' ', '_')
-
-                # others as value, and join all as one string
-                value = ' '.join(texts[1:]).strip()
-                movie[key] = value
 
             # append movie into movies
             movies.append(movie)
