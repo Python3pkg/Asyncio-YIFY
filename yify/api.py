@@ -21,7 +21,7 @@ def get_one(url, sem):
 
         # get movie poster
         movie['poster_large'] =\
-            root.xpath('//div[@class="cover"]/img')[0].attrib['src']
+            'https:' + root.xpath('//div[@class="cover"]/img')[0].attrib['src']
 
         # get movie details
         for li in root.xpath('//div[@class="inattr"]//li'):
@@ -47,8 +47,8 @@ def get_one(url, sem):
         movie['magnet'] = attrs[2].xpath('./a')[0].attrib['href']
 
         # get screenshots
-        imgs = root.xpath('//div[@class="scrshot"]//img')
-        movie['screenshot'] = [i.attrib['src'] for i in imgs]
+        imgs = root.xpath('//div[contains(@class,"scrshot")]//img')
+        movie['screenshot'] = ['https:' + i.attrib['src'] for i in imgs]
 
         # get plot
         movie['plot'] = root.xpath('//div[@class="info"]/p')[0].text
