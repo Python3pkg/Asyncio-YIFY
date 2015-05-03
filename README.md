@@ -35,11 +35,20 @@ movies = popular(1, 21)
 print(movies[0]['title'])
 ```
 
-###Get latest movies:
+###Get latest movies in one page:
 ```
 from yify import latest
 
 movies = latest()
+print(movies[0]['title'])
+```
+
+###Get latest movies in multiple pages:
+```
+from yify import latest
+
+# get latest movies from page 1 to 21
+movies = latest(1, 21)
 print(movies[0]['title'])
 ```
 
